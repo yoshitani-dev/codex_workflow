@@ -290,8 +290,7 @@ class OrchestrationStore:
                 handle.seek(0)
                 try:
                     if os.name == "nt":
-                        import msvcrt
-
+                        msvcrt: Any = importlib.import_module("msvcrt")
                         msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
                     else:
                         fcntl: Any = importlib.import_module("fcntl")
@@ -308,8 +307,7 @@ class OrchestrationStore:
             if locked:
                 handle.seek(0)
                 if os.name == "nt":
-                    import msvcrt
-
+                    msvcrt = importlib.import_module("msvcrt")
                     msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
                 else:
                     fcntl = importlib.import_module("fcntl")
