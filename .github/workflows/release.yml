@@ -51,6 +51,7 @@ jobs:
           python -m mypy
           python -B scripts/test_workflow_runtime.py -v
           python -B scripts/test_orchestration_runtime.py -v
+          python -B scripts/test_package_release.py -v
           python -B codex_workflow/workflow.py validate \
             --package-root codex_workflow \
             --json

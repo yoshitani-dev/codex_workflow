@@ -5,7 +5,7 @@
 - Local Codex inspected: `codex-cli 0.149.1`.
 - Source base: `viettran-edgeAI/codex_workflow` `1.1.3`, commit
   `e6c899ffd82d7d32aa9f93f0986a402add47c32d`.
-- This thin-extension build: `1.2.1`.
+- This thin-extension build: `1.2.2`.
 - Design references inspected without importing code or runtime dependencies:
   `iannuttall/ralph` commit `5bc402540c45192bd1e9cacb84611ee2e5ba13a8`
   and `maveric/agent-framework` commit

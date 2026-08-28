@@ -237,6 +237,22 @@ def _archive_name(version_text: str, suffix: str) -> str:
     return f"{PACKAGE_DIR_NAME}-{version_text}{suffix}"
 
 
+_TEXT_SUFFIXES = {"", ".json", ".md", ".py", ".toml", ".txt"}
+
+
+def _canonical_file_bytes(path: Path) -> bytes:
+    """Return platform-independent bytes for known text package files."""
+
+    data = path.read_bytes()
+    if path.suffix.lower() not in _TEXT_SUFFIXES:
+        return data
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise ReleaseError(f"release text file is not UTF-8: {path}") from error
+    return text.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
+
+
 def build_zip(package_root: Path, destination: Path) -> None:
     with zipfile.ZipFile(
         destination, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9
@@ -249,7 +265,7 @@ def build_zip(package_root: Path, destination: Path) -> None:
                 info.external_attr |= 0x10
             else:
                 info.compress_type = zipfile.ZIP_DEFLATED
-            archive.writestr(info, b"" if is_directory else path.read_bytes())
+            archive.writestr(info, b"" if is_directory else _canonical_file_bytes(path))
 
 
 def _safe_member_name(name: str) -> str:

@@ -907,7 +907,7 @@ class LifecycleIntegrationTests(unittest.TestCase):
         configured["end_of_session_context_turns"] = 150
         config_path.write_text(json.dumps(configured) + "\n", encoding="utf-8")
 
-        incoming = self.incoming_package("config-migration-incoming", "1.2.1")
+        incoming = self.incoming_package("config-migration-incoming", "1.2.2")
         plan_update(incoming, self.runtime, self.project).apply()
         migrated = json.loads(config_path.read_text(encoding="utf-8"))
         self.assertEqual(migrated["schema_version"], 4)

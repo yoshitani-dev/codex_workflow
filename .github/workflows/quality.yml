@@ -34,5 +34,8 @@ jobs:
       - name: Test orchestration runtime
         run: python -B scripts/test_orchestration_runtime.py -v
 
+      - name: Test deterministic packaging
+        run: python -B scripts/test_package_release.py -v
+
       - name: Validate package
         run: python -B codex_workflow/workflow.py validate --package-root codex_workflow --json

@@ -118,9 +118,10 @@ python -m ruff check codex_workflow scripts
 python -m mypy
 python -B scripts/test_workflow_runtime.py -v
 python -B scripts/test_orchestration_runtime.py -v
+python -B scripts/test_package_release.py -v
 python -B codex_workflow/workflow.py validate --package-root codex_workflow --json
-python scripts/package_release.py --version 1.2.1 --output-dir dist
-python scripts/package_release.py --verify dist/codex_workflow-1.2.1.zip
+python scripts/package_release.py --version 1.2.2 --output-dir dist
+python scripts/package_release.py --verify dist/codex_workflow-1.2.2.zip
 ```
 
 The package builder rejects generated Python caches and creates a deterministic
