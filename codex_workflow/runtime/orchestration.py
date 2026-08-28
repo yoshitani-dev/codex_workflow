@@ -11,19 +11,21 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import importlib
 import json
 import os
 import re
 import time
+from collections.abc import Callable, Iterator
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable, Iterator
+from typing import Any
 
 from .config import WorkflowConfig
 from .errors import ValidationError
-from .transaction import Mutation, apply as apply_transaction
-
+from .transaction import Mutation
+from .transaction import apply as apply_transaction
 
 ORCHESTRATION_SCHEMA_VERSION = 1
 ORCHESTRATION_DIR = ".orchestration"
@@ -87,7 +89,7 @@ _ALLOWED_TRANSITIONS: dict[str, set[str]] = {
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
 def _json_bytes(value: Any) -> bytes:
@@ -112,7 +114,7 @@ class OrchestrationConfig:
     reserve_end_of_session_slot: bool
 
     @classmethod
-    def from_mapping(cls, raw: dict[str, Any]) -> "OrchestrationConfig":
+    def from_mapping(cls, raw: dict[str, Any]) -> OrchestrationConfig:
         expected = {
             "schema_version",
             "max_luna_executors",
@@ -292,13 +294,14 @@ class OrchestrationStore:
 
                         msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
                     else:
-                        import fcntl
-
+                        fcntl: Any = importlib.import_module("fcntl")
                         fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
                     locked = True
                 except (BlockingIOError, OSError):
                     if time.monotonic() >= deadline:
-                        raise ValidationError("timed out waiting for orchestration state lock")
+                        raise ValidationError(
+                            "timed out waiting for orchestration state lock"
+                        ) from None
                     time.sleep(0.05)
             yield
         finally:
@@ -309,8 +312,7 @@ class OrchestrationStore:
 
                     msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
                 else:
-                    import fcntl
-
+                    fcntl = importlib.import_module("fcntl")
                     fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
             handle.close()
 
@@ -923,7 +925,8 @@ class OrchestrationEngine:
             plan_id = None
             source = "heavy_plan"
         elif isinstance(plan, dict):
-            raw_tasks = plan.get("tasks")
+            candidate_tasks = plan.get("tasks")
+            raw_tasks = candidate_tasks if isinstance(candidate_tasks, list) else []
             plan_id = plan.get("plan_id")
             source = plan.get("source", "heavy_plan")
         else:
@@ -1383,7 +1386,7 @@ class OrchestrationEngine:
         if not isinstance(reality, dict):
             raise ValidationError("reality payload must be an object")
         timestamp = self._now()
-        now_value = _parse_timestamp(timestamp) or datetime.now(timezone.utc)
+        now_value = _parse_timestamp(timestamp) or datetime.now(UTC)
         with self.store.locked():
             state, tasks, failures, config = self.store.load()
             events: list[dict[str, Any]] = []
@@ -1861,7 +1864,7 @@ class OrchestrationEngine:
         else:
             target = "PLAN"
         if state["phase"] != target:
-            if target not in _ALLOWED_TRANSITIONS.get(state["phase"], set()):
+            if target not in _ALLOWED_TRANSITIONS.get(state["phase"], set()):  # noqa: SIM102
                 # Reconciliation is the explicit bridge when derived reality
                 # cannot be reached directly from a stale stored phase.
                 if state["phase"] != "REPLAN":

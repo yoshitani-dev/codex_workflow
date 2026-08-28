@@ -10,7 +10,6 @@ from typing import Any
 from ._toml import tomllib
 from .errors import ValidationError
 
-
 REQUESTED = {
     "root": {"model": "gpt-5.6-sol", "reasoning_effort": "high"},
     "executor_luna": {"model": "gpt-5.6-luna", "reasoning_effort": "max"},

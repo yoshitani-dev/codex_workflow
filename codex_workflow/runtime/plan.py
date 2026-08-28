@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from .errors import ValidationError
-from .transaction import Mutation, apply as apply_transaction, summarize
+from .transaction import Mutation, summarize
+from .transaction import apply as apply_transaction
 
 
 @dataclass
@@ -34,10 +37,8 @@ class OperationPlan:
         for directory in sorted(
             set(self.cleanup_dirs), key=lambda path: len(path.parts), reverse=True
         ):
-            try:
+            with contextlib.suppress(OSError):
                 directory.rmdir()
-            except OSError:
-                pass
 
 
 def text_mutation(path: Path, text: str) -> Mutation:

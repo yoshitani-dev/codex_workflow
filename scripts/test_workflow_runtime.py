@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-import json
 import contextlib
 import io
+import json
 import shutil
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
-
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / "codex_workflow"
@@ -22,22 +21,21 @@ import sys
 sys.path.insert(0, str(PACKAGE))
 
 import workflow as workflow_cli
-
+from runtime.backup import append_backup_mutations
 from runtime.config import (
     WorkflowConfig,
     patch_codex_config,
     remove_workflow_owned_config,
     render_heavy_route,
 )
-from runtime.backup import append_backup_mutations
 from runtime.errors import TransactionError, ValidationError
 from runtime.lifecycle import (
     PackageLayout,
     ProjectPaths,
     RuntimePaths,
     materialize_personalization,
-    plan_bootstrap,
     plan_auto_check_update_setting,
+    plan_bootstrap,
     plan_configure,
     plan_enable,
     plan_personalize,
@@ -588,9 +586,11 @@ class TransactionTests(unittest.TestCase):
                     raise OSError("injected failure")
                 original_write(path, content, mode)
 
-            with mock.patch("runtime.transaction._atomic_write", side_effect=fail_once):
-                with self.assertRaises(TransactionError):
-                    apply([Mutation(first, b"new"), Mutation(second, b"created")])
+            with (
+                mock.patch("runtime.transaction._atomic_write", side_effect=fail_once),
+                self.assertRaises(TransactionError),
+            ):
+                apply([Mutation(first, b"new"), Mutation(second, b"created")])
             self.assertEqual(first.read_bytes(), b"old")
             self.assertFalse(second.exists())
 

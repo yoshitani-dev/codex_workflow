@@ -7,7 +7,6 @@ from typing import Any
 
 from .errors import ValidationError
 
-
 ConfigMigration = Callable[[dict[str, Any]], dict[str, Any]]
 
 

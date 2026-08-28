@@ -20,7 +20,6 @@ from .personalization import materialize_personalization
 from .plan import OperationPlan, json_mutation, read_json, text_mutation
 from .transaction import Mutation
 
-
 GITIGNORE_ENTRIES = (
     "agent_docs/",
     ".codex_workflow_hidden_resources/",
@@ -356,16 +355,20 @@ def plan_project_remove(
     disabled_exists = project.disabled.exists()
     if active_exists and disabled_exists:
         raise ValidationError("both active and disabled project entry points exist")
-    for entry in (project.active, project.disabled):
-        if entry.exists() and not entry.is_file():
-            raise ValidationError(f"project entry point is not a regular file: {entry}")
+    for candidate_entry in (project.active, project.disabled):
+        if candidate_entry.exists() and not candidate_entry.is_file():
+            raise ValidationError(
+                f"project entry point is not a regular file: {candidate_entry}"
+            )
 
     mutations: list[Mutation] = []
     warnings = [
         "project agent_docs/ files are project documentation and will be preserved",
         "project .orchestration/ machine state will be preserved",
     ]
-    entry = project.active if active_exists else project.disabled if disabled_exists else None
+    entry: Path | None = (
+        project.active if active_exists else project.disabled if disabled_exists else None
+    )
     if entry is not None:
         current = entry.read_text(encoding="utf-8")
         if PROJECT_ID not in current:

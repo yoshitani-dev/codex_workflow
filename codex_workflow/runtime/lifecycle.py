@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from . import RUNTIME_SCHEMA_VERSION
@@ -10,7 +10,7 @@ from .backup import append_backup_mutations
 from .config import WorkflowConfig, load_config, load_migrated_config
 from .errors import ValidationError
 from .layout import USER_STATE, PackageLayout, ProjectPaths, RuntimePaths
-from .personalization import materialize_personalization
+from .personalization import materialize_personalization as materialize_personalization
 from .plan import (
     OperationPlan,
     deduplicate,
@@ -20,8 +20,12 @@ from .plan import (
     resolve_owned_runtime_path,
 )
 from .project_ops import (
-    plan_enable,
-    plan_personalize,
+    plan_enable as plan_enable,
+)
+from .project_ops import (
+    plan_personalize as plan_personalize,
+)
+from .project_ops import (
     plan_project_install,
     plan_project_remove,
     plan_project_update,
@@ -171,7 +175,7 @@ def plan_update(
     backup_root = (
         runtime.runtime
         / ".backups"
-        / f"{installed.version}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')}"
+        / f"{installed.version}-{datetime.now(UTC).strftime('%Y%m%dT%H%M%S%fZ')}"
     )
     mutations: list[Mutation] = []
     append_backup_mutations(mutations, backup_root, runtime, project)

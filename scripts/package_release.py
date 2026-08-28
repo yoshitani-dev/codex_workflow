@@ -14,11 +14,10 @@ import re
 import subprocess
 import sys
 import zipfile
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from functools import total_ordering
 from pathlib import Path, PurePosixPath
-from typing import Iterable, Iterator
-
 
 PACKAGE_DIR_NAME = "codex_workflow"
 VERSION_FILE = "VERSION"
@@ -56,7 +55,7 @@ class SemVer:
             return 1
         if not other.prerelease:
             return -1
-        for left, right in zip(self.prerelease, other.prerelease):
+        for left, right in zip(self.prerelease, other.prerelease, strict=False):
             if left == right:
                 continue
             left_numeric = left.isdigit()
@@ -120,7 +119,8 @@ def parse_semver(raw: str, *, allow_v: bool = False) -> SemVer:
     if any(len(part) > 1 and part.startswith("0") for part in core):
         raise ReleaseError(f"invalid semantic version: {raw!r}")
 
-    return SemVer(*(int(part) for part in core), prerelease, build)
+    major, minor, patch = (int(part) for part in core)
+    return SemVer(major, minor, patch, prerelease, build)
 
 
 def _validate_identifiers(

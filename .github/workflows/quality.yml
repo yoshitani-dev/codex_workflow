@@ -1,0 +1,38 @@
+name: Quality checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install development checks
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: python -m ruff check codex_workflow scripts
+
+      - name: Type check
+        run: python -m mypy
+
+      - name: Test lifecycle runtime
+        run: python -B scripts/test_workflow_runtime.py -v
+
+      - name: Test orchestration runtime
+        run: python -B scripts/test_orchestration_runtime.py -v
+
+      - name: Validate package
+        run: python -B codex_workflow/workflow.py validate --package-root codex_workflow --json

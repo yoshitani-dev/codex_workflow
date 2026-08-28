@@ -22,26 +22,25 @@ if sys.version_info < (3, 11):
 from runtime.config import load_config
 from runtime.errors import WorkflowError
 from runtime.layout import PROJECT_ID
-from runtime.model_canary import inspect_model_routing
-from runtime.orchestration import (
-    OrchestrationEngine,
-    initial_orchestration_mutations,
-    route_request,
-)
-from runtime.transaction import apply as apply_transaction
 from runtime.lifecycle import (
     OperationPlan,
     PackageLayout,
     ProjectPaths,
     RuntimePaths,
-    plan_bootstrap,
     plan_auto_check_update_setting,
+    plan_bootstrap,
     plan_configure,
     plan_enable,
     plan_personalize,
     plan_project_install,
     plan_remove,
     plan_update,
+)
+from runtime.model_canary import inspect_model_routing
+from runtime.orchestration import (
+    OrchestrationEngine,
+    initial_orchestration_mutations,
+    route_request,
 )
 from runtime.release import (
     acquire,
@@ -50,6 +49,7 @@ from runtime.release import (
     select_releases,
     summarize_release_notes,
 )
+from runtime.transaction import apply as apply_transaction
 
 
 def _default_codex_home() -> Path:
@@ -465,10 +465,10 @@ def main() -> int:
             assert project is not None
             plan = plan_remove(runtime, project)
             if not args.confirm:
-                summary = plan.summary()
-                summary["applied"] = False
-                summary["confirmation_required"] = True
-                _emit(summary, compact=args.json)
+                removal_summary = plan.summary()
+                removal_summary["applied"] = False
+                removal_summary["confirmation_required"] = True
+                _emit(removal_summary, compact=args.json)
                 return 0
             return _finish(plan, args)
         if args.command in {

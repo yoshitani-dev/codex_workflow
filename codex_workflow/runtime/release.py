@@ -15,7 +15,6 @@ from pathlib import Path, PurePosixPath
 
 from .errors import ValidationError
 
-
 RELEASES_URL = (
     "https://api.github.com/repos/yoshitani-dev/codex_workflow/releases?per_page=100"
 )
@@ -36,7 +35,7 @@ class SemVer:
             return False
         if not other.prerelease:
             return True
-        for left, right in zip(self.prerelease, other.prerelease):
+        for left, right in zip(self.prerelease, other.prerelease, strict=False):
             if left == right:
                 continue
             if left.isdigit() and right.isdigit():
@@ -62,7 +61,8 @@ def parse_semver(value: str) -> SemVer:
     for identifier in prerelease:
         if identifier.isdigit() and len(identifier) > 1 and identifier.startswith("0"):
             raise ValidationError(f"invalid semantic version: {value!r}")
-    return SemVer(tuple(int(match.group(index)) for index in range(1, 4)), prerelease)
+    core = tuple(int(match.group(index)) for index in range(1, 4))
+    return SemVer((core[0], core[1], core[2]), prerelease)
 
 
 @dataclass(frozen=True)
@@ -98,18 +98,20 @@ def select_releases(timeout: int = 30) -> list[ReleaseSelection]:
             if isinstance(asset, dict) and isinstance(asset.get("name"), str)
         }
         zip_name = f"codex_workflow-{version_text}.zip"
-        if zip_name in assets and "SHA256SUMS" in assets:
+        zip_url = assets.get(zip_name)
+        checksums_url = assets.get("SHA256SUMS")
+        if isinstance(zip_url, str) and isinstance(checksums_url, str):
+            release_notes = record.get("body")
+            release_url = record.get("html_url")
             candidates.append(
                 ReleaseSelection(
                     version_text,
                     version,
                     zip_name,
-                    str(assets[zip_name]),
-                    str(assets["SHA256SUMS"]),
-                    record.get("body") if isinstance(record.get("body"), str) else "",
-                    record.get("html_url")
-                    if isinstance(record.get("html_url"), str)
-                    else "",
+                    zip_url,
+                    checksums_url,
+                    release_notes if isinstance(release_notes, str) else "",
+                    release_url if isinstance(release_url, str) else "",
                 )
             )
     if not candidates:

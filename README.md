@@ -7,7 +7,8 @@ cross-session handoff for larger tasks.
 This repository is a compatible extension of
 [`viettran-edgeAI/codex_workflow`](https://github.com/viettran-edgeAI/codex_workflow),
 based on version 1.1.3. The internal workflow identifier is intentionally kept
-compatible so existing installations can update in place.
+compatible so existing installations can update in place. See
+[UPSTREAM.md](UPSTREAM.md) for the reviewed relationship with upstream 1.1.4.
 
 <h3 align="center"><big><big><strong>SIMPLE&emsp;&emsp;───&emsp;&emsp;EASY&emsp;&emsp;───&emsp;&emsp;EFFICIENT</strong></big></big></h3>
 <p align="center"><small>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(to use)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(to install)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(token consumption)</small></p>
@@ -112,6 +113,9 @@ guide, and Heavy-route design, see [workflow_usage.md](workflow_usage.md).
 From the repository root, run:
 
 ```powershell
+python -m pip install -r requirements-dev.txt
+python -m ruff check codex_workflow scripts
+python -m mypy
 python -B scripts/test_workflow_runtime.py -v
 python -B scripts/test_orchestration_runtime.py -v
 python -B codex_workflow/workflow.py validate --package-root codex_workflow --json
@@ -121,3 +125,9 @@ python scripts/package_release.py --verify dist/codex_workflow-1.2.1.zip
 
 The package builder rejects generated Python caches and creates a deterministic
 ZIP plus `SHA256SUMS`. See [RELEASING.md](RELEASING.md) for the release process.
+
+## License
+
+No reuse license is granted. The upstream source used for this fork did not
+include a license grant, so this fork cannot safely apply an open-source license
+to the combined work. See [LICENSE](LICENSE) for the rights notice.

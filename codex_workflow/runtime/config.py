@@ -13,7 +13,6 @@ from .errors import ValidationError
 from .markers import EFFECTIVE_CONFIG, replace
 from .migrations import migrate_config_resource
 
-
 DEFAULT_EXECUTORS = {"executor_luna", "executor_terra"}
 REASONING_EFFORTS = {"high", "xhigh", "max"}
 CONFIG_SCHEMA_VERSION = 4
@@ -35,7 +34,7 @@ class WorkflowConfig:
     @classmethod
     def from_mapping(
         cls, raw: dict[str, Any], *, available_workers: set[str] | None = None
-    ) -> "WorkflowConfig":
+    ) -> WorkflowConfig:
         expected = {
             "schema_version",
             "default_executor",
@@ -229,7 +228,11 @@ _KEY = re.compile(r"^\s*([A-Za-z0-9_-]+)\s*=")
 
 
 def _patch_section(lines: list[str], section: str, values: dict[str, str]) -> list[str]:
-    headers = [index for index, line in enumerate(lines) if (_SECTION.match(line) and _SECTION.match(line).group(1) == section)]
+    headers: list[int] = []
+    for index, line in enumerate(lines):
+        match = _SECTION.match(line)
+        if match is not None and match.group(1) == section:
+            headers.append(index)
     if len(headers) > 1:
         raise ValidationError(f"duplicate TOML section [{section}]")
     if not headers:

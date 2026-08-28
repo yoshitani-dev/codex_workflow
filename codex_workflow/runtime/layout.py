@@ -19,7 +19,6 @@ from .markers import (
 from .orchestration import OrchestrationConfig
 from .personalization import materialize_personalization
 
-
 PROJECT_ID = "<!-- codex-workflow-id: viettran-edgeAI/codex_workflow -->"
 USER_ID = "<!-- codex-workflow-user-id: viettran-edgeAI/codex_workflow -->"
 WORKER_MARKER = re.compile(r"^# codex-workflow-worker: ([A-Za-z0-9_-]+)$", re.MULTILINE)
@@ -35,7 +34,7 @@ class PackageLayout:
     project_docs: Path
 
     @classmethod
-    def resolve(cls, root: Path, *, allow_legacy: bool = False) -> "PackageLayout":
+    def resolve(cls, root: Path, *, allow_legacy: bool = False) -> PackageLayout:
         root = root.resolve()
         if not (root / "VERSION").is_file():
             nested = root / "codex_workflow"

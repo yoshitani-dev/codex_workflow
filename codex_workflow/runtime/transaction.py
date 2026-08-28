@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 import tempfile
 from dataclasses import dataclass
@@ -121,8 +122,6 @@ def _rollback(snapshots: list[_Snapshot], created: list[Path]) -> list[str]:
         except Exception as error:  # pragma: no cover - exercised by fault injection
             errors.append(f"{snapshot.path}: {error}")
     for directory in reversed(created):
-        try:
+        with contextlib.suppress(OSError):
             directory.rmdir()
-        except OSError:
-            pass
     return errors
