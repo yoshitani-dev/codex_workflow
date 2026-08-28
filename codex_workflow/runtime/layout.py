@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,6 +16,7 @@ from .markers import (
     extract,
     validate_project_template,
 )
+from .orchestration import OrchestrationConfig
 from .personalization import materialize_personalization
 
 
@@ -87,11 +89,14 @@ class PackageLayout:
                 )
             required = [
                 "workflow.py",
+                "STATEFUL_ORCHESTRATION_AUDIT.md",
                 "resources/workflow_config.default.json",
                 "heavy_route.md",
                 "medium_route.md",
                 "explorer_companion.md",
                 "end_of_session.md",
+                "auto_route.md",
+                "orchestration_guide.md",
                 "install.md",
                 "bootstrap.md",
                 "update.md",
@@ -113,6 +118,8 @@ class PackageLayout:
                 "runtime/lifecycle.py",
                 "runtime/markers.py",
                 "runtime/migrations.py",
+                "runtime/model_canary.py",
+                "runtime/orchestration.py",
                 "runtime/personalization.py",
                 "runtime/plan.py",
                 "runtime/project_ops.py",
@@ -121,6 +128,8 @@ class PackageLayout:
                 "runtime/transaction.py",
                 "resources/auto_check_update.md",
                 "resources/personalization.md",
+                "resources/orchestration_config.default.json",
+                "resources/heavy_plan.example.json",
             ]
             missing = [relative for relative in required if not (self.root / relative).is_file()]
             if missing:
@@ -170,6 +179,19 @@ class PackageLayout:
                     encoding="utf-8"
                 )
             )
+            try:
+                orchestration_config = json.loads(
+                    (self.root / "resources" / "orchestration_config.default.json").read_text(
+                        encoding="utf-8"
+                    )
+                )
+            except json.JSONDecodeError as error:
+                raise ValidationError(
+                    f"invalid package orchestration config: {error}"
+                ) from error
+            if not isinstance(orchestration_config, dict):
+                raise ValidationError("package orchestration config root must be an object")
+            OrchestrationConfig.from_mapping(orchestration_config)
 
     @property
     def version(self) -> str:
@@ -260,3 +282,7 @@ class ProjectPaths:
     @property
     def docs(self) -> Path:
         return self.root / "agent_docs"
+
+    @property
+    def orchestration(self) -> Path:
+        return self.root / ".orchestration"

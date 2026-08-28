@@ -29,6 +29,12 @@ must not be edited as user configuration.
 5. Maximum worker final-report size in words.
 6. Exit.
 
+The Luna-only active limit is deliberately not part of this upstream-compatible
+menu. It lives in each project's extension-owned
+`.orchestration/config.json` as `max_luna_executors` (default `4`). Total child
+capacity remains `max_concurrent_workers`, while `executor_sol` capacity remains
+the existing `max_executor_sol_instances` setting.
+
 Ask the user to select one menu item. For a setting, ask only the follow-up
 needed for a valid value, allow **Keep current**, and then return to the full
 menu with refreshed current values. Continue until the user selects **Exit**.

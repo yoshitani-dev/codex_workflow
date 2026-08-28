@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "max_luna_executors": 4,
+  "max_luna_attempts_per_task": 3,
+  "same_failure_limit": 2,
+  "max_sol_escalations_per_task": 2,
+  "max_macro_iterations": 12,
+  "stale_running_seconds": 3600,
+  "reserve_end_of_session_slot": true
+}

@@ -15,6 +15,7 @@ from .markers import (
     render_project_entry,
     replace,
 )
+from .orchestration import initial_orchestration_mutations
 from .personalization import materialize_personalization
 from .plan import OperationPlan, json_mutation, read_json, text_mutation
 from .transaction import Mutation
@@ -23,6 +24,7 @@ from .transaction import Mutation
 GITIGNORE_ENTRIES = (
     "agent_docs/",
     ".codex_workflow_hidden_resources/",
+    ".orchestration/",
     "AGENTS.md",
 )
 BOOTSTRAP_DOC_MARKER = "<!-- codex-workflow-bootstrap-template -->"
@@ -170,6 +172,15 @@ def plan_project_install(package: PackageLayout, project: ProjectPaths) -> Opera
         "enabled": enabled,
     }
     mutations.append(json_mutation(project.state, project_state))
+    mutations.extend(
+        initial_orchestration_mutations(
+            project.root,
+            workflow_version=package.version,
+            config_text=(
+                package.root / "resources" / "orchestration_config.default.json"
+            ).read_text(encoding="utf-8"),
+        )
+    )
     gitignore_mutation = _plan_gitignore(project)
     if gitignore_mutation is not None:
         mutations.append(gitignore_mutation)
@@ -315,6 +326,19 @@ def plan_project_update(
         "enabled": not disabled_exists,
     }
     mutations.append(json_mutation(project.state, state))
+    orchestration_mutations = initial_orchestration_mutations(
+        project.root,
+        workflow_version=incoming.version,
+        config_text=(
+            incoming.root / "resources" / "orchestration_config.default.json"
+        ).read_text(encoding="utf-8"),
+    )
+    mutations.extend(orchestration_mutations)
+    if not orchestration_mutations:
+        orchestration_state_path = project.orchestration / "state.json"
+        orchestration_state = read_json(orchestration_state_path, default={})
+        orchestration_state["workflow_version"] = incoming.version
+        mutations.append(json_mutation(orchestration_state_path, orchestration_state))
     gitignore_mutation = _plan_gitignore(project)
     if gitignore_mutation is not None:
         mutations.append(gitignore_mutation)
@@ -339,6 +363,7 @@ def plan_project_remove(
     mutations: list[Mutation] = []
     warnings = [
         "project agent_docs/ files are project documentation and will be preserved",
+        "project .orchestration/ machine state will be preserved",
     ]
     entry = project.active if active_exists else project.disabled if disabled_exists else None
     if entry is not None:

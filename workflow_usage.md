@@ -21,7 +21,7 @@ This guide is organized into five parts:
 Open Codex from the project directory and send this prompt:
 
 ```text
-Download and extract the latest `codex_workflow-<version>.zip` asset (not GitHub's Source code archive) from https://github.com/viettran-edgeAI/codex_workflow/releases. Verify it against `SHA256SUMS`, then read the bundled `codex_workflow/bootstrap.md` and follow it exactly.
+Download and extract the latest `codex_workflow-<version>.zip` asset (not GitHub's Source code archive) from https://github.com/yoshitani-dev/codex_workflow/releases. Verify it against `SHA256SUMS`, then read the bundled `codex_workflow/bootstrap.md` and follow it exactly.
 ```
 
 The release package is a universal ZIP for Linux, macOS, and Windows. Its
@@ -183,7 +183,7 @@ reapply configuration or personalization.
 
 ### Route selection and deployment closure
 
-There are three execution routes:
+There are three execution routes and one optional selector:
 
 - **Light route** — the default; the main agent works alone with minimal
   workflow overhead.
@@ -191,6 +191,8 @@ There are three execution routes:
   only Explorer and the dedicated handoff worker are used.
 - **Heavy route** — the main agent orchestrates enabled worker subagents for
   larger deployment-state tasks.
+- **AUTO selector** — resolves once to Light, Medium, or Heavy and then uses
+  that route unchanged. It is not another execution system.
 
 For ordinary questions and small tasks, no route command is needed. To select
 a route for a task or plan, include one of these instructions in the prompt:
@@ -198,11 +200,15 @@ a route for a task or plan, include one of these instructions in the prompt:
 ```text
 use medium route. [task description]
 use heavy route. [task description]
+use auto route. [task description]
 ```
+
+An explicit Light, Medium, or Heavy request always overrides AUTO. If the user
+does not select a route, Light remains the default.
 
 The selected route remains active until the user changes it or the session
 ends. Each substantive Medium or Heavy deployment automatically creates a fresh
-Luna xhigh worker before its final response. That worker receives the configured
+Luna Max worker before its final response. That worker receives the configured
 recent main-agent turns and alone reconciles the complete `agent_docs/`
 framework, handles Git closure, and returns the final three-column
 worker-statistics table. No manual closure prompt, main-agent summary, usage
@@ -240,10 +246,14 @@ and the current project as follows:
     ├── runtime/                            # validation, rendering, release, and transaction modules
     ├── resources/                          # immutable package defaults
     │   ├── auto_check_update.md
+    │   ├── orchestration_config.default.json
+    │   ├── heavy_plan.example.json
     │   ├── personalization.md
     │   └── workflow_config.default.json
     ├── install_state.json                  # workflow ownership and installed-state manifest
     ├── heavy_route.md                      # Heavy-route orchestration rules
+    ├── auto_route.md                       # optional selector into existing routes
+    ├── orchestration_guide.md              # persistent Heavy state contract
     ├── medium_route.md                     # Medium-route rules
     ├── explorer_companion.md               # read-only context gateway and brief contracts
     ├── end_of_session.md                   # shared handoff spawn contract
@@ -277,6 +287,13 @@ and the current project as follows:
 │   ├── project_progress.md
 │   ├── project_diary.md
 │   └── latest_session_work.md
+├── .orchestration/                         # machine state, separate from human docs
+│   ├── config.json                         # Luna-only capacity and bounded-loop budgets
+│   ├── state.json                          # explicit deployment state machine
+│   ├── tasks.json                          # machine-readable Heavy Plan DAG
+│   ├── failures.json                       # normalized failure memory
+│   ├── events.jsonl                        # append-only logical event stream
+│   └── runs/                               # bounded iteration/recovery snapshots
 └── .codex_workflow_hidden_resources/
     ├── personalization.md                  # project-scoped private resource
     ├── state.json                          # project entry-format and activation state
@@ -324,7 +341,7 @@ The current default snapshot is:
 {
   "schema_version": 4,
   "default_executor": "executor_luna",
-  "default_executor_reasoning_effort": "xhigh",
+  "default_executor_reasoning_effort": "max",
   "auto_check_update": false,
   "max_concurrent_workers": 20,
   "max_executor_sol_instances": 1,
@@ -360,14 +377,27 @@ synchronizes the Heavy snapshot, all worker TOMLs, and workflow-owned
 `config.toml` keys. End-of-Session handoff context is owned by the automatic
 handoff contract rather than persistent user configuration.
 
-The concurrency values must stay synchronized: the confirmed
+The platform concurrency values must stay synchronized: the confirmed
 `max_concurrent_workers` in `workflow_config.json` is also written to
-`[features.multi_agent_v2].max_concurrent_threads_per_session` in
+`[agents].max_concurrent_threads_per_session` in
 `~/.codex/config.toml`. The value `20` is only the current package default; it
 must be replaced when the user selects another valid limit.
 
+The project-specific Luna limit is intentionally separate. The thin extension
+stores `max_luna_executors=4`, retry budgets, stagnation thresholds, and the
+macro-iteration bound in `.orchestration/config.json`. It does not add an
+unverified field to the upstream `workflow_config.json` schema. Total child
+capacity stays 20 by default so Tester, Explorer, one `executor_sol`, and the
+reserved End-of-Session slot remain possible alongside up to four Lunas.
+
 When worker definitions or platform settings change, open a new Codex session
 so the updated settings are loaded.
+
+Every distributed worker explicitly uses `service_tier = "default"`. All
+Luna-based roles (`executor_luna`, Tester, Doc writer, Explorer, and
+End-of-Session) explicitly use `model_reasoning_effort = "max"`. The workflow
+does not opt into Fast mode. An intentional local override must change the owned
+template and should be treated as a user customization.
 
 ### Tuning an individual worker
 
@@ -375,14 +405,13 @@ All distributed workers live in `~/.codex/agents/` and are generated from
 templates. The `enabled_workers` configuration controls which materialized
 workers the workflow may create and use.
 Advanced changes belong in the owned template before reconfiguration. For
-example, a template may add:
+example, a template may explicitly retain standard processing with:
 
 ```toml
-service_tier = "fast"
+service_tier = "default"
 ```
 
-to an installed worker whose service supports that setting. Keep the role's
-scope, reporting contract, and safety boundaries intact. Do not edit unrelated
+Keep the role's scope, reporting contract, and safety boundaries intact. Do not edit unrelated
 worker files or replace a materialized worker with a repository-only file.
 
 To add a custom worker, ask Codex to create a worker template consistent with
@@ -445,6 +474,13 @@ small tasks use a direct main-agent fast path and must not call subagents. When
 that fast path calls no subagent, its final response also omits the worker
 statistics table.
 
+For substantive work, Root controls an explicit persistent state machine:
+`INIT → DISCOVER → PLAN → READY → DISPATCH → EXECUTE → VERIFY → CLASSIFY →
+REPLAN/ESCALATE`, ending only at `DONE`, `BLOCKED`, or `FAILED`. The existing
+Heavy Plan is serialized as the Task DAG; there is no second planner. Only READY
+tasks with satisfied dependencies, available inputs, and non-conflicting write
+scopes are dispatchable.
+
 ### Roles and ownership
 
 The current enabled set is:
@@ -477,8 +513,9 @@ When Heavy is selected for a deployment-state task, the main agent:
    discovery;
 4. directly inspects only decision-critical, contradictory, uncertain, or
    high-risk evidence;
-5. sends self-contained work packages to only the enabled workers needed for
-   the task.
+5. persists that same Heavy Plan as the machine-readable DAG and reconciles it
+   with Git, active threads, inputs, and objective verification;
+6. sends self-contained work packages only for scheduler-returned READY tasks.
 
 Each package distributes task identity, outcome, ownership, upstream decisions,
 interfaces, dependencies, recommendation and rationale, the key invariant and
@@ -497,7 +534,10 @@ User selects Heavy route
 Explorer refines project and repository evidence into a planning brief
         │
         ▼
-Main forms architecture and distributes guidance-rich package(s)
+Main forms architecture and persists the Heavy Plan as a Task DAG
+        │
+        ▼
+READY scheduler allocates only necessary Luna workers (maximum four)
         │
         ▼
 Executor implements one coherent increment and self-validates
@@ -516,7 +556,7 @@ Explorer consolidates material knowledge deltas when needed
 Main integrates verified package outcomes
         │
         ▼
-Fresh Luna xhigh worker automatically closes the deployment before the final response
+Fresh End-of-Session worker closes docs/Git; Root then records DONE
 ```
 
 The tester and responsible executor receive each other's canonical task names.
@@ -537,7 +577,9 @@ artifact.
 ### Concurrency and communication controls
 
 The current configuration permits at most twenty concurrent child workers and
-at most one `executor_sol` instance. Explorer is reported as a companion rather
+at most one `executor_sol` instance. The state extension independently limits
+active `executor_luna` instances to four and allocates fewer whenever fewer
+independent READY tasks exist. Explorer is reported as a companion rather
 than a task worker, but its live thread consumes platform capacity. Heavy keeps
 one child-agent slot available for the fresh End-of-Session worker and must not
 exceed the enabled-worker list or configured limits.
@@ -563,7 +605,7 @@ deployment remains recorded concisely instead of clearing both files.
 
 Before each substantive Medium or Heavy deployment returns its final response,
 the route automatically creates a fresh, uniquely named `end_of_session` worker
-with the handoff contract's finite context fork. This preserves its Luna xhigh
+with the handoff contract's finite context fork. This preserves its Luna Max
 model while inheriting recent main-agent context. Without a parent-built capsule
 or usage ledger, it reconciles every core and module-specific
 `agent_docs/` file against verified deployment facts, performs compact closing
@@ -573,6 +615,11 @@ with exactly three statistics columns:
 (turn-starting assignments and follow-ups). Explorer has no closure
 responsibility. Direct questions and small or odd bounded tasks create no
 worker, handoff, or statistics table.
+
+Machine recovery uses `.orchestration/` plus current Git, active-agent IDs,
+required inputs, and fresh verification. Missing or stale running agents reopen
+their tasks. A stored `done` task reopens when objective verification reports
+`FAIL` or `NOT_TESTED`; objective evidence has priority over stored assumption.
 
 ## Part 5 — Component hierarchy and ownership
 
@@ -612,6 +659,9 @@ Location: the current project directory
 - `AGENTS.md` is the active project entry point and contains the workflow
   instructions materialized for this project.
 - `agent_docs/` contains the six-document Project Documentation Framework.
+- `.orchestration/` contains the Heavy Plan DAG, state, failures, events, and
+  run snapshots. It is machine state, ignored by Git by default, and preserved
+  when the workflow is removed.
 - `.codex_workflow_hidden_resources/.AGENTS.md` is the same entry point in its
   disabled state and must not coexist with root `AGENTS.md`.
 
@@ -629,7 +679,7 @@ Primary resource:
 The resource currently contains:
 
 1. `default_executor`: currently `executor_luna`;
-2. `default_executor_reasoning_effort`: currently `xhigh`;
+2. `default_executor_reasoning_effort`: currently `max`;
 3. `auto_check_update`: currently `false`;
 4. `max_concurrent_workers`: currently `20`;
 5. `max_executor_sol_instances`: currently `1`;

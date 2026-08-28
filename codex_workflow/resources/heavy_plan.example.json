@@ -1,0 +1,30 @@
+{
+  "source": "heavy_plan",
+  "plan_id": "example_deployment_plan",
+  "tasks": [
+    {
+      "id": "T001",
+      "title": "Implement one bounded package",
+      "description": "Apply the Heavy Plan package without changing protected surfaces.",
+      "status": "planned",
+      "dependencies": [],
+      "acceptance_criteria": [
+        {
+          "id": "AC1",
+          "text": "The requested behavior is covered by objective verification."
+        }
+      ],
+      "verification": {
+        "required": [
+          "run the focused package test"
+        ]
+      },
+      "owner": "executor_luna",
+      "write_scope": [
+        "src/package/**"
+      ],
+      "required_inputs_available": true,
+      "attempts": 0
+    }
+  ]
+}

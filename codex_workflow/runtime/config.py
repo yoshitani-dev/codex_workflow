@@ -201,19 +201,19 @@ def patch_codex_config(text: str, config: WorkflowConfig) -> str:
             tomllib.loads(text)
         except tomllib.TOMLDecodeError as error:
             raise ValidationError(f"existing Codex config is invalid TOML: {error}") from error
+    # Codex 0.149 exposes child-thread capacity under [agents].  Earlier
+    # codex_workflow releases wrote experimental multi_agent_v2 keys.  Remove
+    # only those workflow-owned legacy keys before materializing the supported
+    # surface; unrelated user settings in either section are retained.
+    lines = _remove_owned_keys(text.splitlines(), {
+        "features.multi_agent_v2": _WORKFLOW_OWNED_KEYS["features.multi_agent_v2"]
+    })
     sections: dict[str, dict[str, str]] = {
-        "agents": {"enabled": "true"},
-        "features.multi_agent_v2": {
+        "agents": {
             "enabled": "true",
             "max_concurrent_threads_per_session": str(config.max_concurrent_workers),
-            "hide_spawn_agent_metadata": "false",
-            "tool_namespace": '"agents"',
-            "min_wait_timeout_ms": "300_000",
-            "default_wait_timeout_ms": "300_000",
-            "max_wait_timeout_ms": "3_600_000",
         },
     }
-    lines = text.splitlines()
     for section, values in sections.items():
         lines = _patch_section(lines, section, values)
     rendered = "\n".join(lines).rstrip() + "\n"
@@ -260,7 +260,7 @@ def _patch_section(lines: list[str], section: str, values: dict[str, str]) -> li
 
 
 _WORKFLOW_OWNED_KEYS: dict[str, set[str]] = {
-    "agents": {"enabled"},
+    "agents": {"enabled", "max_concurrent_threads_per_session"},
     "features.multi_agent_v2": {
         "enabled",
         "max_concurrent_threads_per_session",
@@ -271,6 +271,47 @@ _WORKFLOW_OWNED_KEYS: dict[str, set[str]] = {
         "max_wait_timeout_ms",
     },
 }
+
+
+def _remove_owned_keys(
+    lines: list[str], owned_by_section: dict[str, set[str]]
+) -> list[str]:
+    """Drop selected owned keys while retaining unrelated section content."""
+
+    result: list[str] = []
+    index = 0
+    while index < len(lines):
+        header = _SECTION.match(lines[index])
+        if header is None or header.group(1) not in owned_by_section:
+            result.append(lines[index])
+            index += 1
+            continue
+        section = header.group(1)
+        end = next(
+            (
+                position
+                for position in range(index + 1, len(lines))
+                if _SECTION.match(lines[position])
+            ),
+            len(lines),
+        )
+        retained = [
+            line
+            for line in lines[index + 1 : end]
+            if not (
+                (match := _KEY.match(line))
+                and match.group(1) in owned_by_section[section]
+            )
+        ]
+        if any(line.strip() for line in retained):
+            result.append(lines[index])
+            result.extend(retained)
+        while result and not result[-1].strip() and (
+            index == 0 or not any(line.strip() for line in retained)
+        ):
+            result.pop()
+        index = end
+    return result
 
 
 def remove_workflow_owned_config(text: str) -> str:

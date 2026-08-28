@@ -1,7 +1,7 @@
 {
   "schema_version": 4,
   "default_executor": "executor_luna",
-  "default_executor_reasoning_effort": "xhigh",
+  "default_executor_reasoning_effort": "max",
   "auto_check_update": false,
   "max_concurrent_workers": 20,
   "max_executor_sol_instances": 1,

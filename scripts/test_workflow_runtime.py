@@ -199,6 +199,25 @@ class MarkerTests(unittest.TestCase):
         self.assertNotIn("Execution Guide as the primary work sequence", terra)
         self.assertIn("always contains one required", bootstrap)
         self.assertIn("explicitly labeled bootstrap/project-install action", doc_writer)
+        for luna_worker in (
+            "executor_luna",
+            "tester",
+            "doc-writer",
+            "explorer",
+            "end_of_session",
+        ):
+            worker = (PACKAGE / "agents" / f"{luna_worker}.toml").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn('model = "gpt-5.6-luna"', worker)
+            self.assertIn('model_reasoning_effort = "max"', worker)
+            self.assertIn('service_tier = "default"', worker)
+            self.assertNotIn('service_tier = "fast"', worker)
+        for standard_tier_worker in ("executor_sol", "executor_terra"):
+            worker = (PACKAGE / "agents" / f"{standard_tier_worker}.toml").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn('service_tier = "default"', worker)
         for required_context in (
             "project_structure.md",
             "project_overview.md",
@@ -412,6 +431,30 @@ class ConfigTests(unittest.TestCase):
         self.assertIn("other = 7", rendered)
         self.assertIn("max_concurrent_threads_per_session = 20", rendered)
 
+    def test_toml_patch_migrates_legacy_owned_keys_only(self) -> None:
+        config = WorkflowConfig.from_mapping(
+            json.loads(
+                (PACKAGE / "resources" / "workflow_config.default.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+        )
+        original = (
+            '[features.multi_agent_v2]\n'
+            'enabled = true\n'
+            'max_concurrent_threads_per_session = 7\n'
+            'keep_feature = "keep"\n\n'
+            '[agents]\n'
+            'enabled = false\n'
+            'keep_agent = true\n'
+        )
+        rendered = patch_codex_config(original, config)
+        self.assertIn('keep_feature = "keep"', rendered)
+        self.assertIn("keep_agent = true", rendered)
+        self.assertNotIn("[features.multi_agent_v2]\nenabled", rendered)
+        self.assertEqual(rendered.count("max_concurrent_threads_per_session"), 1)
+        self.assertIn("[agents]", rendered)
+
     def test_toml_remove_preserves_unrelated_content(self) -> None:
         original = (
             'model = "custom"\n\n'
@@ -443,7 +486,7 @@ class ConfigTests(unittest.TestCase):
             (PACKAGE / "heavy_route.md").read_text(encoding="utf-8"), config
         )
         self.assertIn("Maximum concurrent child workers: `20`", rendered)
-        self.assertIn("Default executor: `executor_luna` (`xhigh`", rendered)
+        self.assertIn("Default executor: `executor_luna` (`max`", rendered)
         self.assertNotIn("End-of-Session context fork", rendered)
         self.assertIn(
             'fork_turns="200"',
@@ -655,6 +698,7 @@ class LifecycleIntegrationTests(unittest.TestCase):
         for entry in (
             "agent_docs/",
             ".codex_workflow_hidden_resources/",
+            ".orchestration/",
             "AGENTS.md",
         ):
             self.assertEqual(gitignore.splitlines().count(entry), 1)
@@ -665,6 +709,7 @@ class LifecycleIntegrationTests(unittest.TestCase):
         for entry in (
             "agent_docs/",
             ".codex_workflow_hidden_resources/",
+            ".orchestration/",
             "AGENTS.md",
         ):
             self.assertEqual(repeated.splitlines().count(entry), 1)
@@ -715,6 +760,13 @@ class LifecycleIntegrationTests(unittest.TestCase):
         self.assertTrue((self.runtime.agents / "explorer.toml").is_file())
         state = json.loads((self.runtime.runtime / "install_state.json").read_text())
         self.assertIn("explorer", state["owned_workers"])
+
+    def test_configure_skips_unchanged_global_entry_and_codex_config(self) -> None:
+        self.bootstrap()
+        plan = plan_configure(self.runtime, {})
+        targets = {mutation.path for mutation in plan.mutations}
+        self.assertNotIn(self.runtime.user_agents, targets)
+        self.assertNotIn(self.runtime.config_toml, targets)
 
     def test_configure_materializes_auto_check_instruction_when_changed(self) -> None:
         self.bootstrap()
@@ -828,7 +880,7 @@ class LifecycleIntegrationTests(unittest.TestCase):
         second = ProjectPaths(second_root)
         plan_project_install(self.package, second).apply()
 
-        incoming = self.incoming_package("multi-project-incoming", "1.2.0")
+        incoming = self.incoming_package("multi-project-incoming", "1.3.0")
         incoming_template = incoming.project_template.read_text(encoding="utf-8")
         incoming.project_template.write_text(
             incoming_template.replace("## Working State", "## Working State (1.2)"),
@@ -838,7 +890,7 @@ class LifecycleIntegrationTests(unittest.TestCase):
 
         plan_update(incoming, self.runtime, self.project).apply()
         second_plan = plan_update(incoming, self.runtime, second)
-        self.assertEqual(second_plan.details["from_version"], "1.2.0")
+        self.assertEqual(second_plan.details["from_version"], "1.3.0")
         self.assertEqual(second_plan.details["project_from_version"], PACKAGE_VERSION)
         second_plan.apply()
         self.assertIn(
@@ -855,7 +907,7 @@ class LifecycleIntegrationTests(unittest.TestCase):
         configured["end_of_session_context_turns"] = 150
         config_path.write_text(json.dumps(configured) + "\n", encoding="utf-8")
 
-        incoming = self.incoming_package("config-migration-incoming", "1.2.0")
+        incoming = self.incoming_package("config-migration-incoming", "1.2.1")
         plan_update(incoming, self.runtime, self.project).apply()
         migrated = json.loads(config_path.read_text(encoding="utf-8"))
         self.assertEqual(migrated["schema_version"], 4)
@@ -978,6 +1030,8 @@ class LifecycleIntegrationTests(unittest.TestCase):
             "[features.multi_agent_v2]\nenabled = true",
             '[features.multi_agent_v2]\nenabled = true\nkeep_feature = "keep"',
         )
+        if "keep_feature" not in config:
+            config += '\n[features.multi_agent_v2]\nkeep_feature = "keep"\n'
         self.runtime.config_toml.write_text(
             'model = "keep"\n\n' + config,
             encoding="utf-8",
@@ -1062,7 +1116,11 @@ class LifecycleIntegrationTests(unittest.TestCase):
             encoding="utf-8",
         )
         plan = plan_auto_check_update_setting(self.runtime, enabled=False)
-        self.assertEqual(len(plan.mutations), 2)
+        self.assertEqual(len(plan.mutations), 1)
+        self.assertNotIn(
+            self.runtime.user_agents,
+            {mutation.path for mutation in plan.mutations},
+        )
         plan.apply()
         configured = json.loads(
             (self.runtime.runtime / "workflow_config.json").read_text(encoding="utf-8")
@@ -1191,12 +1249,12 @@ class LifecycleIntegrationTests(unittest.TestCase):
             incoming_root,
             ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
         )
-        (incoming_root / "VERSION").write_text("1.1.3\n", encoding="utf-8")
+        (incoming_root / "VERSION").write_text("1.2.2\n", encoding="utf-8")
         user_agents = (incoming_root / "user_AGENTS.md").read_text(encoding="utf-8")
         (incoming_root / "user_AGENTS.md").write_text(
             user_agents.replace(
                 f"codex-workflow-version: {PACKAGE_VERSION}",
-                "codex-workflow-version: 1.1.3",
+                "codex-workflow-version: 1.2.2",
             ),
             encoding="utf-8",
         )
@@ -1220,7 +1278,7 @@ class LifecycleIntegrationTests(unittest.TestCase):
         )
         self.assertEqual(completed.returncode, 0, completed.stderr)
         summary = json.loads(completed.stdout)
-        self.assertEqual(summary["details"]["to_version"], "1.1.3")
+        self.assertEqual(summary["details"]["to_version"], "1.2.2")
         self.assertTrue(summary["applied"])
 
 

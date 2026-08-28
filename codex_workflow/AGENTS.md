@@ -49,17 +49,21 @@ receiving a second explicit confirmation.
 
 ## Route Selection
 
-There are three routes:
+There are three execution routes plus an optional AUTO selector:
 
 - **Light**: leaf-state work. The main agent works directly; no subagents.
 - **Medium**: deployment-state work performed by the main agent. Explorer and
   the dedicated End-of-Session worker are the only subagent exceptions. Read
   `~/.codex/codex_workflow/medium_route.md`.
 - **Heavy**: deployment-state work orchestrated through specialized workers.
-  Read `~/.codex/codex_workflow/heavy_route.md`.
+  Read `~/.codex/codex_workflow/heavy_route.md`; substantive Heavy work also
+  reads `~/.codex/codex_workflow/orchestration_guide.md`.
+- **AUTO**: classify once into Light, Medium, or Heavy using
+  `~/.codex/codex_workflow/auto_route.md`; it is not a fourth execution system.
 
-The user selects the route for the session. If unspecified, use Light; do not
-infer Medium or Heavy. Light implies `leaf state`; Medium and Heavy imply
+The user selects the route for the session. An explicit Light, Medium, or Heavy
+selection always overrides AUTO. If unspecified, use Light; do not infer Medium,
+Heavy, or AUTO. Light implies `leaf state`; Medium and Heavy imply
 `deployment state` only for substantive work. Their direct fast path remains
 `leaf state`. Keep the selected route until the user changes it or the session
 ends.
@@ -92,6 +96,9 @@ ends.
   `end_of_session.md` exactly once. Its worker inherits recent main-agent
   context and performs the complete documentation-framework update. The
   handoff is not a user command.
+- When AUTO resolves to Heavy, use the same Heavy Plan and materialize it as the
+  persistent Task DAG. AUTO does not create another planner or another repair
+  loop.
 
 ## Platform Paths
 

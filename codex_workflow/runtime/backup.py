@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from .errors import ValidationError
 from .layout import ProjectPaths, RuntimePaths
 from .transaction import Mutation
 
@@ -39,8 +40,24 @@ def append_backup_mutations(
         )
         if path.is_file()
     )
+    targets.extend(
+        path
+        for path in (
+            project.orchestration / "config.json",
+            project.orchestration / "state.json",
+            project.orchestration / "tasks.json",
+            project.orchestration / "failures.json",
+            project.orchestration / "events.jsonl",
+        )
+        if path.is_file()
+    )
+    runs = project.orchestration / "runs"
+    if runs.is_dir():
+        targets.extend(path for path in runs.rglob("*") if path.is_file())
     seen: set[Path] = set()
     for source in targets:
+        if source.is_symlink():
+            raise ValidationError(f"refusing to back up symlinked workflow state: {source}")
         resolved = source.resolve()
         if resolved in seen:
             continue

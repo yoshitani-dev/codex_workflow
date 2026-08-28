@@ -120,6 +120,8 @@ def _plan_user_agents_from_sources(
             rendered = replace(current, USER_MANAGED, managed)
         else:
             rendered = append_region(current, USER_MANAGED, managed)
+        if rendered == current:
+            return []
     else:
         rendered = append_region("", USER_MANAGED, managed)
     return [text_mutation(runtime.user_agents, rendered)]
@@ -180,9 +182,9 @@ def plan_materialized_config(
         if runtime.config_toml.is_file()
         else ""
     )
-    mutations.append(
-        text_mutation(runtime.config_toml, patch_codex_config(config_text, config))
-    )
+    rendered_config = patch_codex_config(config_text, config)
+    if rendered_config != config_text:
+        mutations.append(text_mutation(runtime.config_toml, rendered_config))
     return mutations
 
 

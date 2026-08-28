@@ -5,7 +5,7 @@ Use after Heavy is selected under `AGENTS.md`.
 <!-- codex-workflow-effective-config-start -->
 ## Effective Workflow Configuration
 
-- Default executor: `executor_luna` (`xhigh` reasoning effort).
+- Default executor: `executor_luna` (`max` reasoning effort).
 - Enabled workers: `executor_luna`, `executor_sol`, `tester`, `doc-writer`, `explorer`, `end_of_session`.
 - Maximum concurrent child workers: `20`.
 - Maximum `executor_sol` workers: `1`.
@@ -62,12 +62,21 @@ request planning only. For durable work, the main agent may update
 closure worker owns final reconciliation and replaces
 `latest_session_work.md`; no other worker may edit either file.
 
+## Heavy Plan and Persistent State
+
+Read `orchestration_guide.md` before substantive execution. Build one normal
+Heavy Plan and serialize that exact plan as the Task DAG, never a second plan.
+Reconcile reality, dispatch only scheduler-returned READY tasks, and persist
+transitions, verification, failures, and escalation. Objective evidence wins;
+stop at the finite budget or DONE, BLOCKED, or FAILED.
+
 ## Packages and Knowledge Distribution
 
 Delegate coherent, independently completable packages large enough for one
 executor to perform local discovery, implementation, self-check, and routine
 repair. Run packages concurrently only when outcomes and mutable ownership are
-independent. Keep one child slot available for End-of-Session.
+independent. Use the state scheduler for Luna≤4 and write-scope exclusion; keep
+one child slot available for End-of-Session.
 
 Every initial task-worker uses `fork_turns="none"`. A capsule is the worker's
 local slice of the main agent's global understanding and must contain:

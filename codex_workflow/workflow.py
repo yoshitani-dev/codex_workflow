@@ -22,6 +22,13 @@ if sys.version_info < (3, 11):
 from runtime.config import load_config
 from runtime.errors import WorkflowError
 from runtime.layout import PROJECT_ID
+from runtime.model_canary import inspect_model_routing
+from runtime.orchestration import (
+    OrchestrationEngine,
+    initial_orchestration_mutations,
+    route_request,
+)
+from runtime.transaction import apply as apply_transaction
 from runtime.lifecycle import (
     OperationPlan,
     PackageLayout,
@@ -130,6 +137,51 @@ def parse_args() -> argparse.Namespace:
     validate = commands.add_parser("validate")
     _add_common(validate, project=False)
     validate.add_argument("--package-root", type=Path, default=Path(__file__).resolve().parent)
+
+    route = commands.add_parser("route", help="resolve an AUTO assessment to Light, Medium, or Heavy")
+    _add_common(route, project=False)
+    route.add_argument("--assessment", type=Path, required=True)
+    route.add_argument("--manual-route", choices=["light", "medium", "heavy"])
+
+    orchestrate = commands.add_parser("orchestrate", help="operate the persistent Heavy state machine")
+    _add_common(orchestrate)
+    orchestrate.add_argument(
+        "action",
+        choices=[
+            "init",
+            "status",
+            "start",
+            "import-plan",
+            "begin-iteration",
+            "schedule",
+            "dispatch",
+            "register-agent",
+            "release-agent",
+            "execution-result",
+            "verify",
+            "fail",
+            "specialist-result",
+            "reconcile",
+            "close",
+        ],
+    )
+    orchestrate.add_argument("--deployment-id")
+    orchestrate.add_argument("--route", choices=["heavy", "auto"], default="heavy")
+    orchestrate.add_argument("--git-head")
+    orchestrate.add_argument("--new-deployment", action="store_true")
+    orchestrate.add_argument("--payload", type=Path)
+    orchestrate.add_argument("--task-id")
+    orchestrate.add_argument("--agent-instance")
+    orchestrate.add_argument("--role")
+    orchestrate.add_argument("--write-scope", action="append", default=[])
+    orchestrate.add_argument("--reason")
+    orchestrate.add_argument("--closure-state", choices=["complete", "blocked", "failed"])
+    orchestrate.add_argument("--end-of-session-status")
+
+    canary = commands.add_parser("model-canary", help="inspect requested/configured/runtime model identity")
+    _add_common(canary, project=False)
+    canary.add_argument("--codex-bin", default="codex")
+    canary.add_argument("--runtime-metadata", type=Path)
     return parser.parse_args()
 
 
@@ -152,6 +204,115 @@ def _finish(plan: OperationPlan, args: argparse.Namespace) -> int:
     plan.apply()
     _emit(summary, compact=args.json)
     return 0
+
+
+def _json_object(path: Path | None, description: str) -> dict[str, object]:
+    if path is None:
+        raise WorkflowError(f"{description} requires --payload")
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise WorkflowError(f"cannot read {description} payload {path}: {error}") from error
+    if not isinstance(value, dict):
+        raise WorkflowError(f"{description} payload must be a JSON object")
+    return value
+
+
+def _required(value: str | None, option: str) -> str:
+    if not value:
+        raise WorkflowError(f"{option} is required for this action")
+    return value
+
+
+def _orchestration_engine(
+    runtime: RuntimePaths, project: ProjectPaths
+) -> OrchestrationEngine:
+    package_root = Path(__file__).resolve().parent
+    installed = runtime.runtime
+    source = installed if (installed / "VERSION").is_file() else package_root
+    package = PackageLayout.resolve(source)
+    mutations = initial_orchestration_mutations(
+        project.root,
+        workflow_version=package.version,
+        config_text=(package.root / "resources" / "orchestration_config.default.json").read_text(
+            encoding="utf-8"
+        ),
+    )
+    if mutations:
+        apply_transaction(mutations)
+    workflow_config_path = installed / "workflow_config.json"
+    if workflow_config_path.is_file():
+        workflow_config = load_config(
+            workflow_config_path, templates=installed / "templates" / "agents"
+        )
+    else:
+        workflow_config = load_config(
+            package.default_config, templates=package.agent_templates
+        )
+    return OrchestrationEngine(project.root, workflow_config)
+
+
+def _run_orchestration(
+    args: argparse.Namespace, runtime: RuntimePaths, project: ProjectPaths
+) -> dict[str, object]:
+    engine = _orchestration_engine(runtime, project)
+    action = args.action
+    if action in {"init", "status"}:
+        return engine.status()
+    if action == "start":
+        return engine.start_deployment(
+            _required(args.deployment_id, "--deployment-id"),
+            route=args.route,
+            git_head=args.git_head,
+            new_deployment=args.new_deployment,
+        )
+    if action == "import-plan":
+        return engine.import_heavy_plan(_json_object(args.payload, "Heavy Plan"))
+    if action == "begin-iteration":
+        return engine.begin_iteration()
+    if action == "schedule":
+        return engine.schedule()
+    if action == "dispatch":
+        return engine.dispatch(
+            _required(args.task_id, "--task-id"),
+            agent_instance=_required(args.agent_instance, "--agent-instance"),
+        )
+    if action == "register-agent":
+        return engine.register_auxiliary_agent(
+            role=_required(args.role, "--role"),
+            agent_instance=_required(args.agent_instance, "--agent-instance"),
+            task_id=args.task_id,
+            write_scope=args.write_scope,
+        )
+    if action == "release-agent":
+        return engine.release_agent(
+            _required(args.agent_instance, "--agent-instance"), reason=args.reason or "completed"
+        )
+    if action == "execution-result":
+        return engine.record_execution_result(
+            _required(args.task_id, "--task-id"), _json_object(args.payload, "execution result")
+        )
+    if action == "verify":
+        return engine.record_verification(
+            _required(args.task_id, "--task-id"), _json_object(args.payload, "verification")
+        )
+    if action == "fail":
+        return engine.record_failure(
+            _required(args.task_id, "--task-id"), _json_object(args.payload, "failure")
+        )
+    if action == "specialist-result":
+        return engine.record_specialist_result(
+            _required(args.task_id, "--task-id"), _json_object(args.payload, "specialist result")
+        )
+    if action == "reconcile":
+        return engine.reconcile(_json_object(args.payload, "reality"))
+    if action == "close":
+        return engine.close(
+            closure_state=_required(args.closure_state, "--closure-state"),
+            end_of_session_status=args.end_of_session_status,
+            reason=args.reason,
+        )
+    raise WorkflowError(f"unsupported orchestration action: {action}")
 
 
 def _project_workflow_entry(project: ProjectPaths) -> Path | None:
@@ -195,6 +356,34 @@ def main() -> int:
     temporary = None
     try:
         runtime, project = _paths(args)
+        if args.command == "route":
+            _emit(
+                route_request(
+                    _json_object(args.assessment, "route assessment"), args.manual_route
+                ),
+                compact=args.json,
+            )
+            return 0
+        if args.command == "model-canary":
+            installed_templates = runtime.runtime / "templates" / "agents"
+            templates = (
+                installed_templates
+                if installed_templates.is_dir()
+                else Path(__file__).resolve().parent / "agents"
+            )
+            _emit(
+                inspect_model_routing(
+                    agent_templates=templates,
+                    codex_bin=args.codex_bin,
+                    runtime_metadata=args.runtime_metadata,
+                ),
+                compact=args.json,
+            )
+            return 0
+        if args.command == "orchestrate":
+            assert project is not None
+            _emit(_run_orchestration(args, runtime, project), compact=args.json)
+            return 0
         if args.command == "validate":
             package = PackageLayout.resolve(args.package_root)
             _emit(

@@ -18,6 +18,14 @@ maintain a usage ledger. The automatic finite fork passes recent main-agent
 turns so the worker inherits the deployment context while retaining its Luna
 xhigh model; its TOML contains the full procedure.
 
+For a stateful Heavy deployment, Root must first observe
+`.orchestration/state.json` with `closure_ready=true`. The worker may read the
+machine state for consistency but must not edit `.orchestration/`; its existing
+ownership remains project documentation and Git/session closure. It returns
+`ORCHESTRATION_CLOSURE: PASS` only when those duties succeed, otherwise
+`ORCHESTRATION_CLOSURE: BLOCKED` with evidence. Root alone records the final
+state transition to DONE.
+
 The worker alone reconciles the complete `agent_docs/` framework, performs
 compact closing checks, handles Git staging and commit, and returns the final
 handoff report and statistics table. Do not call a second documentation worker

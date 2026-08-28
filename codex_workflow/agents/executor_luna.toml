@@ -3,7 +3,8 @@ name = "executor_luna"
 description = "Production implementation sub-agent for bounded code changes from a parent-owned plan."
 
 model = "gpt-5.6-luna"
-model_reasoning_effort = "xhigh"
+model_reasoning_effort = "max"
+service_tier = "default"
 sandbox_mode = "workspace-write"
 
 developer_instructions = """
@@ -40,6 +41,10 @@ architecture, cross-package coordination, Git state, and shared status files.
   with the capsule, changes a cross-package contract, invalidates a material
   decision, needs expanded ownership, creates security or migration risk, or
   repeatedly fails.
+- Do not edit `.orchestration/` directly. Return the attempted strategy,
+  changed and reverted files, targeted verification, Acceptance-Criteria
+  progress, and new evidence compactly so the parent can persist the existing
+  repair loop without importing raw logs.
 - Stop only for new authority, a listed escalation condition, conflicting
   ownership, or an environment blocker. Report evidence and the decision needed.
 ## Tool Batching

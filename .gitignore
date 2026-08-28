@@ -1,4 +1,54 @@
-dist/
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+secrets.json
+
+# Python
 __pycache__/
-scripts/__pycache__/
-tests/
+*.py[cod]
+*.pyd
+.Python
+.venv/
+venv/
+env/
+.tox/
+.nox/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Build and packaging output
+build/
+dist/
+*.egg-info/
+
+# Editors and operating systems
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.bak
+
+# Project-local workflow state generated in consumer repositories
+/AGENTS.md
+/agent_docs/
+/.orchestration/
+/.codex_workflow_hidden_resources/

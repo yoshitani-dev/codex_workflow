@@ -274,6 +274,7 @@ def _verify_member_names(names: Iterable[str]) -> list[str]:
     required = {
         f"{PACKAGE_DIR_NAME}/{VERSION_FILE}",
         f"{PACKAGE_DIR_NAME}/{USER_AGENTS_FILE}",
+        f"{PACKAGE_DIR_NAME}/STATEFUL_ORCHESTRATION_AUDIT.md",
         f"{PACKAGE_DIR_NAME}/bootstrap.md",
         f"{PACKAGE_DIR_NAME}/install.md",
         f"{PACKAGE_DIR_NAME}/update.md",
@@ -284,6 +285,8 @@ def _verify_member_names(names: Iterable[str]) -> list[str]:
         f"{PACKAGE_DIR_NAME}/disable_auto_update.md",
         f"{PACKAGE_DIR_NAME}/disable_auto_check_update.md",
         f"{PACKAGE_DIR_NAME}/end_of_session.md",
+        f"{PACKAGE_DIR_NAME}/auto_route.md",
+        f"{PACKAGE_DIR_NAME}/orchestration_guide.md",
         f"{PACKAGE_DIR_NAME}/agents/end_of_session.toml",
         f"{PACKAGE_DIR_NAME}/workflow.py",
         f"{PACKAGE_DIR_NAME}/runtime/__init__.py",
@@ -295,6 +298,8 @@ def _verify_member_names(names: Iterable[str]) -> list[str]:
         f"{PACKAGE_DIR_NAME}/runtime/lifecycle.py",
         f"{PACKAGE_DIR_NAME}/runtime/markers.py",
         f"{PACKAGE_DIR_NAME}/runtime/migrations.py",
+        f"{PACKAGE_DIR_NAME}/runtime/model_canary.py",
+        f"{PACKAGE_DIR_NAME}/runtime/orchestration.py",
         f"{PACKAGE_DIR_NAME}/runtime/personalization.py",
         f"{PACKAGE_DIR_NAME}/runtime/plan.py",
         f"{PACKAGE_DIR_NAME}/runtime/project_ops.py",
@@ -304,6 +309,8 @@ def _verify_member_names(names: Iterable[str]) -> list[str]:
         f"{PACKAGE_DIR_NAME}/resources/personalization.md",
         f"{PACKAGE_DIR_NAME}/resources/auto_check_update.md",
         f"{PACKAGE_DIR_NAME}/resources/workflow_config.default.json",
+        f"{PACKAGE_DIR_NAME}/resources/orchestration_config.default.json",
+        f"{PACKAGE_DIR_NAME}/resources/heavy_plan.example.json",
     }
     missing = sorted(required.difference(normalized))
     if missing:

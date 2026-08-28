@@ -17,7 +17,7 @@ from .errors import ValidationError
 
 
 RELEASES_URL = (
-    "https://api.github.com/repos/viettran-edgeAI/codex_workflow/releases?per_page=100"
+    "https://api.github.com/repos/yoshitani-dev/codex_workflow/releases?per_page=100"
 )
 
 
