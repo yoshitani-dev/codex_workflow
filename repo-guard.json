@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "scan_email": true,
+  "required_paths": [
+    "README.md",
+    "UPSTREAM.md",
+    "LICENSE",
+    "RELEASING.md",
+    "codex_workflow/VERSION",
+    "codex_workflow/workflow.py",
+    "requirements-dev.txt",
+    ".github/workflows/quality.yml"
+  ],
+  "forbidden_globs": [
+    "*.pem",
+    "*.key",
+    ".env",
+    ".orchestration/**",
+    "**/__pycache__/**"
+  ],
+  "attribution_contract": {
+    "required_files": [
+      "UPSTREAM.md",
+      "LICENSE"
+    ],
+    "text_checks": [
+      {
+        "path": "README.md",
+        "contains": "viettran-edgeAI/codex_workflow"
+      },
+      {
+        "path": "UPSTREAM.md",
+        "contains": "viettran-edgeAI/codex_workflow"
+      }
+    ]
+  }
+}
