@@ -10,6 +10,17 @@ based on version 1.1.3. The internal workflow identifier is intentionally kept
 compatible so existing installations can update in place. See
 [UPSTREAM.md](UPSTREAM.md) for the reviewed relationship with upstream 1.1.4.
 
+## What this fork adds
+
+The upstream 1.1.3 workflow provides the foundation and internal workflow identity. This fork adds the following tested behavior without presenting upstream work as original work:
+
+- persistent Heavy Plan task DAGs and READY scheduling under `.orchestration/`;
+- bounded Luna execution, Tester verification, Sol escalation, and failure history;
+- restart recovery and reconciliation of stored state with observed execution;
+- deterministic lifecycle and release tooling with cross-platform validation.
+
+Upstream 1.1.4 changed the worker topology and lifecycle contract, so this fork ports compatible fixes by behavior instead of treating 1.1.4 as a safe fast-forward. The exact relationship and current divergence are documented in [UPSTREAM.md](UPSTREAM.md).
+
 <h3 align="center"><big><big><strong>SIMPLE&emsp;&emsp;───&emsp;&emsp;EASY&emsp;&emsp;───&emsp;&emsp;EFFICIENT</strong></big></big></h3>
 <p align="center"><small>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(to use)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(to install)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(token consumption)</small></p>
 <hr>
